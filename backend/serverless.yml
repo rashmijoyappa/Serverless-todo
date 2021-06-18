@@ -3,9 +3,12 @@ service:
 
 plugins:
   - serverless-webpack
-  - serverless-iam-roles-per-function
   - serverless-aws-documentation
   - serverless-reqvalidator-plugin
+  - serverless-iam-roles-per-function
+
+package:
+  individually: true
 
 custom:
   webpack:
@@ -89,6 +92,14 @@ functions:
           cors: true
           auth: Auth
           reqValidatorName: RequestBodyValidator
+          request:
+          schema:
+            application/json: ${validators/create-todo-request.json)}
+          documentation:
+            summary: create new ToDo
+            description: create new ToDo
+            requestModels:
+              'application/json': CreateTodo
     iamRoleStatements:
       - Effect: Allow
         Action:
@@ -117,7 +128,9 @@ functions:
           path: todos/{todoId}
           cors: true
           auth: Auth
-          reqValidatorName: RequestBodyValidator
+          request:
+          schema:
+            application/json: ${file(validators/update-todo-request.json)}
     iamRoleStatements:
       - Effect: Allow
         Action:
@@ -203,6 +216,7 @@ functions:
 
 resources:
   Resources:
+    # API Gateway
     RequestBodyValidator:
       Type: AWS::ApiGateway::RequestValidator
       Properties:
@@ -211,7 +225,6 @@ resources:
           Ref: 'ApiGatewayRestApi'
         ValidateRequestBody: true
         ValidateRequestParameters: false
-    # API Gateway
     GatewayResponseDefault4XX:
       Type: AWS::ApiGateway::GatewayResponse
       Properties:
@@ -228,15 +241,15 @@ resources:
       Type: AWS::DynamoDB::Table
       Properties:
         AttributeDefinitions:
-          - AttributeName: todoId
-            AttributeType: S
           - AttributeName: userId
             AttributeType: S
-          - AttributeName: createdAt
+          - AttributeName: todoId
             AttributeType: S
         KeySchema:
-          - AttributeName: todoId
+          - AttributeName: userId
             KeyType: HASH
+          - AttributeName: todoId
+            KeyType: RANGE
         BillingMode: PAY_PER_REQUEST
         TableName: ${self:provider.environment.TODOS_TABLE}
         GlobalSecondaryIndexes:
@@ -244,7 +257,7 @@ resources:
             KeySchema:
               - AttributeName: userId
                 KeyType: HASH
-              - AttributeName: createdAt
+              - AttributeName: todoId
                 KeyType: RANGE
             Projection:
               ProjectionType: ALL
